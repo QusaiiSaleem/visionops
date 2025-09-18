@@ -43,16 +43,8 @@ public sealed class FrameBufferPool : IDisposable
         _arrayPool = ArrayPool<byte>.Create(MaxFrameSize, MaxArraysInPool);
 
         // Configure RecyclableMemoryStreamManager for video operations
-        _streamManager = new RecyclableMemoryStreamManager(
-            blockSize: StreamBlockSize,
-            largeBufferMultiple: 1024 * 1024, // 1MB large buffers
-            maximumBufferSize: MaxStreamSize)
-        {
-            AggressiveBufferReturn = true,
-            GenerateCallStacks = false, // Disable in production for performance
-            MaximumFreeLargePoolBytes = 50 * 1024 * 1024, // 50MB max
-            MaximumFreeSmallPoolBytes = 10 * 1024 * 1024  // 10MB max
-        };
+        // v3.0 API changes: removed blockSize parameter, removed obsolete properties
+        _streamManager = new RecyclableMemoryStreamManager();
 
         // Pre-populate Mat pool
         _matPool = new ConcurrentBag<PooledMat>();
@@ -246,7 +238,8 @@ public sealed class FrameBufferPool : IDisposable
             mat.Dispose();
         }
 
-        _streamManager.Dispose();
+        // RecyclableMemoryStreamManager v3.0 doesn't implement IDisposable
+        // _streamManager.Dispose(); // Removed in v3.0
         _poolSemaphore.Dispose();
 
         // Log final statistics

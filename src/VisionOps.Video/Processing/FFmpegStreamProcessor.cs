@@ -22,7 +22,7 @@ public sealed class FFmpegStreamProcessor : IDisposable
     private readonly ILogger<FFmpegStreamProcessor> _logger;
     private readonly FrameBufferPool _bufferPool;
     private readonly CircularFrameBuffer _frameBuffer;
-    private readonly Channel<TimestampedFrame> _frameChannel;
+    private readonly System.Threading.Channels.Channel<TimestampedFrame> _frameChannel;
     private Process? _ffmpegProcess;
     private CancellationTokenSource? _cancellationTokenSource;
     private Task? _processingTask;
@@ -59,7 +59,7 @@ public sealed class FFmpegStreamProcessor : IDisposable
             CircularBufferFrames);
 
         // Create bounded channel for frame processing
-        _frameChannel = Channel.CreateBounded<TimestampedFrame>(new BoundedChannelOptions(ChannelCapacity)
+        _frameChannel = System.Threading.Channels.Channel.CreateBounded<TimestampedFrame>(new BoundedChannelOptions(ChannelCapacity)
         {
             FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,

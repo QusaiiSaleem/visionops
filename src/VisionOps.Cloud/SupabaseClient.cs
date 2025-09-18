@@ -186,7 +186,7 @@ public class SupabaseClient : IDisposable
                 {
                     foreach (var filter in filters)
                     {
-                        query = query.Filter(filter.Key, Postgrest.Constants.Operator.Equals, filter.Value);
+                        query = query.Filter(filter.Key, Supabase.Postgrest.Constants.Operator.Equals, filter.Value);
                     }
                 }
 
@@ -221,7 +221,7 @@ public class SupabaseClient : IDisposable
 
                 foreach (var filter in filters)
                 {
-                    query = query.Filter(filter.Key, Postgrest.Constants.Operator.Equals, filter.Value);
+                    query = query.Filter(filter.Key, Supabase.Postgrest.Constants.Operator.Equals, filter.Value);
                 }
 
                 await query.Delete();
@@ -319,9 +319,9 @@ public class ConnectionStatus
 /// <summary>
 /// Dummy class for health check queries
 /// </summary>
-[Postgrest.Attributes.Table("configurations")]
+[Supabase.Postgrest.Attributes.Table("configurations")]
 public class SupabaseHealthCheck
 {
-    [Postgrest.Attributes.PrimaryKey("id", false)]
+    [Supabase.Postgrest.Attributes.PrimaryKey("id", false)]
     public string Id { get; set; } = string.Empty;
 }

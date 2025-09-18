@@ -268,7 +268,7 @@ public class Florence2Processor : IDisposable
         {
             // Use tokenizer if available
             var text = _tokenizer.Decode(tokens.Select(t => (int)t).ToArray());
-            return CleanDescription(text);
+            return text != null ? CleanDescription(text) : string.Empty;
         }
 
         // Fallback to simple decoding

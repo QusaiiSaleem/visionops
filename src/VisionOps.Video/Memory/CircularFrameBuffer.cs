@@ -184,7 +184,7 @@ public sealed class CircularFrameBuffer : IDisposable
     /// <summary>
     /// Clean up old frames to prevent memory accumulation
     /// </summary>
-    private void CleanupOldFrames(object state)
+    private void CleanupOldFrames(object? state)
     {
         try
         {
