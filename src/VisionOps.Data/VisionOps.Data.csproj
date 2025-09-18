@@ -21,6 +21,9 @@
 
     <!-- Logging -->
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.*" />
+
+    <!-- Hosting for BackgroundService -->
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.*" />
   </ItemGroup>
 
   <ItemGroup>

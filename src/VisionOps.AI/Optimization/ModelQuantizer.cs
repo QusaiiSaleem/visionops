@@ -328,10 +328,10 @@ if calibration_folder:
         model_output,
         dr,
         quant_format=QuantType.QInt8,
-        per_channel={'config.PerChannelQuantization}'.lower(),
+        per_channel={config.PerChannelQuantization.ToString().ToLower()},
         weight_type=QuantType.QInt8,
         activation_type=QuantType.QUInt8,
-        optimize_model={'config.UseOpenVino}'.lower()
+        optimize_model={config.UseOpenVino.ToString().ToLower()}
     )
 else:
     # Dynamic quantization
@@ -339,8 +339,8 @@ else:
         model_input,
         model_output,
         weight_type=QuantType.QInt8,
-        per_channel={'config.PerChannelQuantization}'.lower(),
-        optimize_model={'config.UseOpenVino}'.lower()
+        per_channel={config.PerChannelQuantization.ToString().ToLower()},
+        optimize_model={config.UseOpenVino.ToString().ToLower()}
     )
 
 print(f'Quantization completed: {{model_output}}')
