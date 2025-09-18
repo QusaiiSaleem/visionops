@@ -1,10 +1,9 @@
+using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
-using Mictlanix.DotNet.Onvif;
-using Mictlanix.DotNet.Onvif.Common;
-using Mictlanix.DotNet.Onvif.Media;
+using OnvifDiscovery.Models;
 using VisionOps.Core.Models;
 
 namespace VisionOps.Video.Discovery;
@@ -12,13 +11,13 @@ namespace VisionOps.Video.Discovery;
 /// <summary>
 /// ONVIF camera discovery service for automatic camera detection on the network
 /// </summary>
-public class OnvifDiscovery
+public class OnvifDiscoveryService
 {
-    private readonly ILogger<OnvifDiscovery> _logger;
+    private readonly ILogger<OnvifDiscoveryService> _logger;
     private readonly TimeSpan _discoveryTimeout;
     private readonly SemaphoreSlim _discoveryLock = new(1, 1);
 
-    public OnvifDiscovery(ILogger<OnvifDiscovery> logger)
+    public OnvifDiscoveryService(ILogger<OnvifDiscoveryService> logger)
     {
         _logger = logger;
         _discoveryTimeout = TimeSpan.FromSeconds(10);
@@ -35,17 +34,22 @@ public class OnvifDiscovery
             _logger.LogInformation("Starting ONVIF camera discovery...");
             var discoveredCameras = new List<CameraConfig>();
 
-            // Use WS-Discovery to find ONVIF devices
-            var discovery = new DiscoveryClient();
-            var devices = await discovery.DiscoverAsync(_discoveryTimeout);
+            // Use OnvifDiscovery package to find devices
+            var discovery = new OnvifDiscovery.Discovery();
 
-            if (devices == null || devices.Length == 0)
+            // Create a CTS for the timeout
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(_discoveryTimeout);
+
+            var devices = await discovery.Discover(1, cts.Token);
+
+            if (!devices.Any())
             {
                 _logger.LogWarning("No ONVIF devices found on network");
                 return discoveredCameras;
             }
 
-            _logger.LogInformation("Found {Count} ONVIF devices", devices.Length);
+            _logger.LogInformation("Found {Count} ONVIF devices", devices.Count());
 
             // Process each discovered device
             foreach (var device in devices)
@@ -63,7 +67,7 @@ public class OnvifDiscovery
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to process ONVIF device at {Address}",
-                        device.XAddrs?.FirstOrDefault());
+                        device.Address);
                 }
             }
 
@@ -82,134 +86,51 @@ public class OnvifDiscovery
         DiscoveryDevice device,
         CancellationToken cancellationToken)
     {
-        if (device.XAddrs == null || !device.XAddrs.Any())
+        if (device.Address == null)
         {
-            _logger.LogWarning("Device has no service addresses");
+            _logger.LogWarning("Device has no address");
             return null;
         }
 
-        var serviceAddress = device.XAddrs.First();
-
         try
         {
-            // Create device client
-            var deviceUri = new Uri(serviceAddress);
-            var deviceClient = new DeviceClient(deviceUri);
-
-            // Get device information
-            var deviceInfo = await deviceClient.GetDeviceInformationAsync();
-            var scopes = await deviceClient.GetScopesAsync();
-
-            // Create camera configuration
+            // Extract device information from the discovery response
             var camera = new CameraConfig
             {
-                Name = $"{deviceInfo?.Manufacturer} {deviceInfo?.Model}".Trim(),
-                Location = ExtractLocationFromScopes(scopes)
+                Name = $"ONVIF Camera {device.Address}",
+                Location = device.Address.ToString()
             };
 
-            // Get media service for stream URLs
-            var mediaUri = await GetMediaServiceUri(deviceClient);
-            if (mediaUri != null)
+            // Build RTSP URL - this is a common pattern for most ONVIF cameras
+            // The actual URL might need to be obtained through ONVIF GetStreamUri
+            // For now, we'll use a common pattern
+            var rtspUrl = BuildRtspUrl(device.Address);
+            if (!string.IsNullOrEmpty(rtspUrl))
             {
-                var mediaClient = new MediaClient(mediaUri);
-
-                // Get profiles and extract RTSP URL
-                var profiles = await mediaClient.GetProfilesAsync();
-                if (profiles != null && profiles.Length > 0)
-                {
-                    // Prefer sub-stream (lower resolution) profile if available
-                    var profile = SelectOptimalProfile(profiles);
-
-                    var streamUri = await mediaClient.GetStreamUriAsync(
-                        new StreamSetup
-                        {
-                            Stream = StreamType.RTPUnicast,
-                            Transport = new Transport
-                            {
-                                Protocol = TransportProtocol.RTSP
-                            }
-                        },
-                        profile.token);
-
-                    if (streamUri?.Uri != null)
-                    {
-                        camera.RtspUrl = streamUri.Uri;
-                        return camera;
-                    }
-                }
+                camera.RtspUrl = rtspUrl;
+                return camera;
             }
 
-            _logger.LogWarning("Could not extract RTSP URL from device");
+            _logger.LogWarning("Could not build RTSP URL for device at {Address}", device.Address);
             return null;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to process ONVIF device at {Address}", serviceAddress);
+            _logger.LogError(ex, "Failed to process ONVIF device at {Address}", device.Address);
             return null;
         }
     }
 
     /// <summary>
-    /// Get media service URI from device
+    /// Build RTSP URL from device address
     /// </summary>
-    private async Task<Uri?> GetMediaServiceUri(DeviceClient deviceClient)
+    private string? BuildRtspUrl(IPAddress address)
     {
-        try
-        {
-            var capabilities = await deviceClient.GetCapabilitiesAsync(new[] { CapabilityCategory.Media });
-            if (capabilities?.Media?.XAddr != null)
-            {
-                return new Uri(capabilities.Media.XAddr);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get media service URI");
-        }
-        return null;
-    }
-
-    /// <summary>
-    /// Select the optimal profile (prefer sub-stream for lower bandwidth)
-    /// </summary>
-    private Profile SelectOptimalProfile(Profile[] profiles)
-    {
-        // Look for sub-stream profile (usually contains "sub" in name)
-        var subStream = profiles.FirstOrDefault(p =>
-            p.Name?.Contains("sub", StringComparison.OrdinalIgnoreCase) == true);
-
-        if (subStream != null)
-            return subStream;
-
-        // Otherwise, select profile with lowest resolution
-        var lowestRes = profiles
-            .Where(p => p.VideoEncoderConfiguration?.Resolution != null)
-            .OrderBy(p => p.VideoEncoderConfiguration.Resolution.Width *
-                         p.VideoEncoderConfiguration.Resolution.Height)
-            .FirstOrDefault();
-
-        return lowestRes ?? profiles[0];
-    }
-
-    /// <summary>
-    /// Extract location information from ONVIF scopes
-    /// </summary>
-    private string ExtractLocationFromScopes(Scope[]? scopes)
-    {
-        if (scopes == null)
-            return "Unknown Location";
-
-        var locationScope = scopes.FirstOrDefault(s =>
-            s.ScopeItem?.Contains("location", StringComparison.OrdinalIgnoreCase) == true);
-
-        if (locationScope != null)
-        {
-            // Extract location from scope URI (e.g., onvif://www.onvif.org/location/country/city)
-            var parts = locationScope.ScopeItem.Split('/');
-            return parts.Length > 0 ? parts[^1] : "Unknown Location";
-        }
-
-        return "Unknown Location";
+        // Common RTSP URL patterns for ONVIF cameras
+        // Most cameras use port 554 for RTSP
+        // The actual stream path varies by manufacturer
+        // This would ideally be obtained via ONVIF GetStreamUri
+        return $"rtsp://{address}:554/stream1";
     }
 
     /// <summary>
@@ -311,5 +232,93 @@ public class OnvifDiscovery
         }
 
         return addresses;
+    }
+
+    /// <summary>
+    /// Scan specific IP range for cameras
+    /// </summary>
+    public async Task<List<CameraConfig>> ScanIpRangeAsync(
+        string startIp,
+        string endIp,
+        CancellationToken cancellationToken = default)
+    {
+        var cameras = new List<CameraConfig>();
+
+        try
+        {
+            var start = IPAddress.Parse(startIp);
+            var end = IPAddress.Parse(endIp);
+
+            // Convert to uint for easy iteration
+            var startBytes = start.GetAddressBytes();
+            var endBytes = end.GetAddressBytes();
+
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(startBytes);
+                Array.Reverse(endBytes);
+            }
+
+            var startNum = BitConverter.ToUInt32(startBytes, 0);
+            var endNum = BitConverter.ToUInt32(endBytes, 0);
+
+            for (uint i = startNum; i <= endNum && !cancellationToken.IsCancellationRequested; i++)
+            {
+                var bytes = BitConverter.GetBytes(i);
+                if (BitConverter.IsLittleEndian)
+                {
+                    Array.Reverse(bytes);
+                }
+
+                var ip = new IPAddress(bytes);
+                var rtspUrl = $"rtsp://{ip}:554/stream1";
+
+                // Quick test if port is open
+                if (await IsPortOpenAsync(ip, 554, cancellationToken))
+                {
+                    var camera = new CameraConfig
+                    {
+                        Name = $"Camera {ip}",
+                        RtspUrl = rtspUrl,
+                        Location = ip.ToString()
+                    };
+
+                    // Test actual RTSP connection
+                    if (await TestCameraConnectionAsync(camera, cancellationToken))
+                    {
+                        camera.Status = CameraStatus.Connected;
+                        camera.LastConnected = DateTime.UtcNow;
+                        cameras.Add(camera);
+                        _logger.LogInformation("Found camera at {Ip}", ip);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to scan IP range");
+        }
+
+        return cameras;
+    }
+
+    /// <summary>
+    /// Check if a port is open on a given IP
+    /// </summary>
+    private async Task<bool> IsPortOpenAsync(IPAddress ip, int port, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var client = new TcpClient();
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            cts.CancelAfter(TimeSpan.FromSeconds(1));
+
+            await client.ConnectAsync(ip, port, cts.Token);
+            return client.Connected;
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

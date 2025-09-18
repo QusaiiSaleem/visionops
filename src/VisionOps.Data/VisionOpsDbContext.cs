@@ -36,15 +36,9 @@ public class VisionOpsDbContext : DbContext
     {
         if (!optionsBuilder.IsConfigured)
         {
-            optionsBuilder.UseSqlite(_connectionString, options =>
+            optionsBuilder.UseSqlite(_connectionString, sqliteOptions =>
             {
-                options.CommandTimeout(30);
-            });
-
-            // Enable WAL mode for better concurrent access
-            optionsBuilder.UseSqlite(builder =>
-            {
-                var connection = builder.Options.Extensions.FirstOrDefault()?.Info;
+                sqliteOptions.CommandTimeout(30);
             });
 
             // Enable logging in debug mode

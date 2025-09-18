@@ -1,7 +1,11 @@
 using System.Buffers;
 using Microsoft.Extensions.Logging;
 using OpenCvSharp;
-using WebPWrapper;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Jpeg;
+using SixLabors.ImageSharp.Formats.Webp;
+using SixLabors.ImageSharp.PixelFormats;
+using SixLabors.ImageSharp.Processing;
 
 namespace VisionOps.Video.Compression;
 
@@ -60,8 +64,8 @@ public class WebPCompressor : IDisposable
             {
                 // Step 1: Resize to target dimensions
                 var targetSize = isKeyFrame
-                    ? new Size(TargetWidth, TargetHeight)  // Key frames: 320x240
-                    : new Size(160, 120);  // Regular frames: even smaller
+                    ? new OpenCvSharp.Size(TargetWidth, TargetHeight)  // Key frames: 320x240
+                    : new OpenCvSharp.Size(160, 120);  // Regular frames: even smaller
 
                 resized = new Mat();
                 Cv2.Resize(frame, resized, targetSize, interpolation: InterpolationFlags.Area);
@@ -104,31 +108,28 @@ public class WebPCompressor : IDisposable
     }
 
     /// <summary>
-    /// Compress frame to WebP format
+    /// Compress frame to WebP format using ImageSharp
     /// </summary>
     private byte[]? CompressToWebP(Mat frame, bool isKeyFrame)
     {
         try
         {
-            // Convert Mat to byte array (BGR format)
-            var imageBytes = new byte[frame.Total() * frame.Channels()];
-            System.Runtime.InteropServices.Marshal.Copy(
-                frame.Data, imageBytes, 0, imageBytes.Length);
+            // Convert OpenCV Mat to ImageSharp Image
+            using var image = MatToImage(frame);
+            if (image == null) return null;
 
-            var quality = isKeyFrame ? WebPQuality : WebPQuality - 10;
+            var quality = isKeyFrame ? WebPQuality : Math.Max(1, WebPQuality - 10);
 
-            using var webp = new WebP();
-            var compressed = webp.EncodeBGR(
-                imageBytes,
-                frame.Width,
-                frame.Height,
-                frame.Width * frame.Channels(),
-                quality);
-
-            if (compressed != null && compressed.Length > 0)
+            using var ms = new MemoryStream();
+            var encoder = new WebpEncoder
             {
-                return compressed;
-            }
+                Quality = quality,
+                Method = WebpEncodingMethod.Fastest,
+                FileFormat = WebpFileFormatType.Lossy
+            };
+
+            image.Save(ms, encoder);
+            return ms.ToArray();
         }
         catch (Exception ex)
         {
@@ -139,26 +140,75 @@ public class WebPCompressor : IDisposable
     }
 
     /// <summary>
-    /// Fallback compression to JPEG format
+    /// Fallback compression to JPEG format using ImageSharp
     /// </summary>
     private byte[]? CompressToJpeg(Mat frame, bool isKeyFrame)
     {
         try
         {
-            var quality = isKeyFrame ? JpegFallbackQuality : JpegFallbackQuality - 10;
+            // Convert OpenCV Mat to ImageSharp Image
+            using var image = MatToImage(frame);
+            if (image == null) return null;
 
-            var parameters = new ImageEncodingParam[]
+            var quality = isKeyFrame ? JpegFallbackQuality : Math.Max(1, JpegFallbackQuality - 10);
+
+            using var ms = new MemoryStream();
+            var encoder = new JpegEncoder
             {
-                new(ImwriteFlags.JpegQuality, quality),
-                new(ImwriteFlags.JpegOptimize, 1),
-                new(ImwriteFlags.JpegProgressive, 0)
+                Quality = quality
             };
 
-            return frame.ImEncode(".jpg", parameters);
+            image.Save(ms, encoder);
+            return ms.ToArray();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "JPEG compression failed");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Convert OpenCV Mat to ImageSharp Image
+    /// </summary>
+    private Image<Rgb24>? MatToImage(Mat mat)
+    {
+        try
+        {
+            if (mat.Empty()) return null;
+
+            // Ensure we have a 3-channel BGR image
+            Mat bgr = mat;
+            if (mat.Channels() == 1)
+            {
+                bgr = new Mat();
+                Cv2.CvtColor(mat, bgr, ColorConversionCodes.GRAY2BGR);
+            }
+            else if (mat.Channels() == 4)
+            {
+                bgr = new Mat();
+                Cv2.CvtColor(mat, bgr, ColorConversionCodes.BGRA2BGR);
+            }
+
+            // Convert BGR to RGB
+            Mat rgb = new Mat();
+            Cv2.CvtColor(bgr, rgb, ColorConversionCodes.BGR2RGB);
+
+            // Create ImageSharp image
+            var image = Image.LoadPixelData<Rgb24>(
+                rgb.ToBytes(),
+                rgb.Width,
+                rgb.Height);
+
+            // Cleanup
+            if (bgr != mat) bgr.Dispose();
+            rgb.Dispose();
+
+            return image;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to convert Mat to Image");
             return null;
         }
     }

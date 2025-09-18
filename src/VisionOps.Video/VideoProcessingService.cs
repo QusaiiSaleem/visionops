@@ -14,7 +14,7 @@ namespace VisionOps.Video;
 public class VideoProcessingService : IDisposable
 {
     private readonly ILogger<VideoProcessingService> _logger;
-    private readonly OnvifDiscovery _discovery;
+    private readonly OnvifDiscoveryService _discovery;
     private readonly FrameScheduler _scheduler;
     private readonly WebPCompressor _compressor;
     private readonly List<CameraConfig> _cameras = new();
@@ -31,7 +31,7 @@ public class VideoProcessingService : IDisposable
     public VideoProcessingService(ILogger<VideoProcessingService> logger)
     {
         _logger = logger;
-        _discovery = new OnvifDiscovery(logger as ILogger<OnvifDiscovery> ??
+        _discovery = new OnvifDiscoveryService(logger as ILogger<OnvifDiscoveryService> ??
             throw new ArgumentException("Invalid logger type"));
         _scheduler = new FrameScheduler(logger as ILogger<FrameScheduler> ??
             throw new ArgumentException("Invalid logger type"));

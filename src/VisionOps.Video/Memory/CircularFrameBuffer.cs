@@ -141,7 +141,7 @@ public sealed class CircularFrameBuffer : IDisposable
     /// <summary>
     /// Get the next frame from the buffer with age checking
     /// </summary>
-    public async Task<TimestampedFrame> GetFrameAsync(
+    public async Task<TimestampedFrame?> GetFrameAsync(
         int timeoutMs = 1000,
         CancellationToken cancellationToken = default)
     {
@@ -280,66 +280,6 @@ public sealed class CircularFrameBuffer : IDisposable
         _logger.LogInformation(
             "CircularFrameBuffer disposed for camera {CameraId}. Processed: {Processed}, Dropped: {Dropped}",
             _cameraId, _totalFramesProcessed, _totalFramesDropped);
-    }
-}
-
-/// <summary>
-/// Frame with timestamp and automatic disposal
-/// </summary>
-public sealed class TimestampedFrame : IDisposable
-{
-    private readonly byte[] _data;
-    private readonly FrameBufferPool _bufferPool;
-    private bool _disposed;
-
-    public int Width { get; }
-    public int Height { get; }
-    public MatType Type { get; }
-    public DateTime Timestamp { get; }
-
-    internal TimestampedFrame(
-        byte[] data,
-        int width,
-        int height,
-        MatType type,
-        DateTime timestamp,
-        FrameBufferPool bufferPool)
-    {
-        _data = data ?? throw new ArgumentNullException(nameof(data));
-        _bufferPool = bufferPool ?? throw new ArgumentNullException(nameof(bufferPool));
-        Width = width;
-        Height = height;
-        Type = type;
-        Timestamp = timestamp;
-    }
-
-    /// <summary>
-    /// Convert to Mat for processing. Mat should be disposed after use.
-    /// </summary>
-    public Mat ToMat()
-    {
-        if (_disposed)
-            throw new ObjectDisposedException(nameof(TimestampedFrame));
-
-        return new Mat(Height, Width, Type, _data);
-    }
-
-    /// <summary>
-    /// Get raw data reference (do not modify)
-    /// </summary>
-    public ReadOnlySpan<byte> Data => _data;
-
-    /// <summary>
-    /// Age of the frame
-    /// </summary>
-    public TimeSpan Age => DateTime.UtcNow - Timestamp;
-
-    public void Dispose()
-    {
-        if (_disposed) return;
-
-        _bufferPool.ReturnBuffer(_data);
-        _disposed = true;
     }
 }
 

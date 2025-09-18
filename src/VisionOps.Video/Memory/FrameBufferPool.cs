@@ -110,21 +110,22 @@ public sealed class FrameBufferPool : IDisposable
     /// <summary>
     /// Get a pooled Mat object. MUST be disposed after use.
     /// </summary>
-    public async Task<PooledMat> RentMatAsync(int height, int width, MatType type = MatType.CV_8UC3)
+    public async Task<PooledMat> RentMatAsync(int height, int width, MatType? type = null)
     {
         await _poolSemaphore.WaitAsync();
 
         try
         {
+            var matType = type ?? MatType.CV_8UC3;
             if (_matPool.TryTake(out var pooledMat))
             {
-                pooledMat.Reset(height, width, type);
+                pooledMat.Reset(height, width, matType);
                 return pooledMat;
             }
 
             // Create new if pool is empty (shouldn't happen after warmup)
             _logger.LogWarning("Mat pool empty, creating new Mat");
-            return new PooledMat(height, width, type);
+            return new PooledMat(height, width, matType);
         }
         finally
         {
@@ -156,7 +157,7 @@ public sealed class FrameBufferPool : IDisposable
     /// <summary>
     /// Get a recyclable memory stream
     /// </summary>
-    public RecyclableMemoryStream GetStream(string tag = null)
+    public RecyclableMemoryStream GetStream(string? tag = null)
     {
         return _streamManager.GetStream(tag ?? "VideoFrame");
     }
@@ -164,7 +165,7 @@ public sealed class FrameBufferPool : IDisposable
     /// <summary>
     /// Get a stream with initial capacity
     /// </summary>
-    public RecyclableMemoryStream GetStream(int capacity, string tag = null)
+    public RecyclableMemoryStream GetStream(int capacity, string? tag = null)
     {
         return _streamManager.GetStream(tag ?? "VideoFrame", capacity);
     }
@@ -262,12 +263,12 @@ public sealed class FrameBufferPool : IDisposable
 public sealed class PooledMat : IDisposable
 {
     private Mat _mat;
-    private static FrameBufferPool _pool;
+    private static FrameBufferPool? _pool;
     private bool _disposed;
 
-    internal PooledMat(int height = 1080, int width = 1920, MatType type = MatType.CV_8UC3)
+    internal PooledMat(int height = 1080, int width = 1920, MatType? type = null)
     {
-        _mat = new Mat(height, width, type);
+        _mat = new Mat(height, width, type ?? MatType.CV_8UC3);
     }
 
     internal void Reset(int height, int width, MatType type)

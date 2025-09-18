@@ -1,4 +1,5 @@
 using OpenCvSharp;
+using VisionOps.Video.Memory;
 
 namespace VisionOps.Video.Memory;
 
@@ -7,17 +8,24 @@ namespace VisionOps.Video.Memory;
 /// </summary>
 public class TimestampedFrame : IDisposable
 {
+    private readonly byte[] _data;
+    private readonly FrameBufferPool? _bufferPool;
     private bool _disposed;
 
     /// <summary>
-    /// Camera ID that captured this frame
+    /// Frame width
     /// </summary>
-    public string CameraId { get; }
+    public int Width { get; }
 
     /// <summary>
-    /// The actual frame data (OpenCV Mat)
+    /// Frame height
     /// </summary>
-    public Mat Frame { get; }
+    public int Height { get; }
+
+    /// <summary>
+    /// Frame type (OpenCV MatType)
+    /// </summary>
+    public MatType Type { get; }
 
     /// <summary>
     /// Timestamp when the frame was captured
@@ -25,15 +33,52 @@ public class TimestampedFrame : IDisposable
     public DateTime Timestamp { get; }
 
     /// <summary>
-    /// Frame sequence number
+    /// Camera ID that captured this frame (optional)
     /// </summary>
-    public long FrameNumber { get; }
+    public string? CameraId { get; init; }
+
+    /// <summary>
+    /// Frame sequence number (optional)
+    /// </summary>
+    public long? FrameNumber { get; init; }
 
     /// <summary>
     /// Whether this is a key frame for Florence-2 processing
     /// </summary>
-    public bool IsKeyFrame => FrameNumber % 10 == 0;
+    public bool IsKeyFrame => FrameNumber.HasValue && FrameNumber.Value % 10 == 0;
 
+    /// <summary>
+    /// Age of the frame
+    /// </summary>
+    public TimeSpan Age => DateTime.UtcNow - Timestamp;
+
+    /// <summary>
+    /// Get raw data reference (do not modify)
+    /// </summary>
+    public ReadOnlySpan<byte> Data => _data;
+
+    /// <summary>
+    /// Constructor used by CircularFrameBuffer
+    /// </summary>
+    internal TimestampedFrame(
+        byte[] data,
+        int width,
+        int height,
+        MatType type,
+        DateTime timestamp,
+        FrameBufferPool? bufferPool)
+    {
+        _data = data ?? throw new ArgumentNullException(nameof(data));
+        _bufferPool = bufferPool;
+        Width = width;
+        Height = height;
+        Type = type;
+        Timestamp = timestamp;
+    }
+
+    /// <summary>
+    /// Constructor for general use with Mat and camera info
+    /// </summary>
     public TimestampedFrame(
         string cameraId,
         Mat frame,
@@ -41,9 +86,29 @@ public class TimestampedFrame : IDisposable
         long frameNumber)
     {
         CameraId = cameraId ?? throw new ArgumentNullException(nameof(cameraId));
-        Frame = frame ?? throw new ArgumentNullException(nameof(frame));
+        if (frame == null) throw new ArgumentNullException(nameof(frame));
+
+        Width = frame.Width;
+        Height = frame.Height;
+        Type = frame.Type();
         Timestamp = timestamp;
         FrameNumber = frameNumber;
+
+        // Copy frame data to internal buffer
+        _data = new byte[frame.Total() * frame.Channels()];
+        System.Runtime.InteropServices.Marshal.Copy(
+            frame.Data, _data, 0, _data.Length);
+    }
+
+    /// <summary>
+    /// Convert to Mat for processing. Mat should be disposed after use.
+    /// </summary>
+    public Mat ToMat()
+    {
+        if (_disposed)
+            throw new ObjectDisposedException(nameof(TimestampedFrame));
+
+        return new Mat(Height, Width, Type, _data);
     }
 
     /// <summary>
@@ -54,11 +119,20 @@ public class TimestampedFrame : IDisposable
         if (_disposed)
             throw new ObjectDisposedException(nameof(TimestampedFrame));
 
+        var clonedData = new byte[_data.Length];
+        Array.Copy(_data, clonedData, _data.Length);
+
         return new TimestampedFrame(
-            CameraId,
-            Frame.Clone(),
+            clonedData,
+            Width,
+            Height,
+            Type,
             Timestamp,
-            FrameNumber);
+            null)
+        {
+            CameraId = this.CameraId,
+            FrameNumber = this.FrameNumber
+        };
     }
 
     /// <summary>
@@ -69,17 +143,17 @@ public class TimestampedFrame : IDisposable
         if (_disposed)
             throw new ObjectDisposedException(nameof(TimestampedFrame));
 
-        var bytes = new byte[Frame.Total() * Frame.Channels()];
-        System.Runtime.InteropServices.Marshal.Copy(
-            Frame.Data, bytes, 0, bytes.Length);
-        return bytes;
+        var result = new byte[_data.Length];
+        Array.Copy(_data, result, _data.Length);
+        return result;
     }
 
     public void Dispose()
     {
         if (_disposed) return;
 
-        Frame?.Dispose();
+        // Return buffer to pool if it came from a pool
+        _bufferPool?.ReturnBuffer(_data);
         _disposed = true;
     }
 }
