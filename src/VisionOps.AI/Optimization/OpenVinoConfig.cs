@@ -100,8 +100,7 @@ public static class OpenVinoConfig
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 var openvinoDll = "openvino.dll";
-                var handle = NativeLibrary.TryLoad(openvinoDll, out _);
-                if (handle != IntPtr.Zero)
+                if (NativeLibrary.TryLoad(openvinoDll, out var handle))
                 {
                     NativeLibrary.Free(handle);
                     return true;
@@ -114,8 +113,7 @@ public static class OpenVinoConfig
                     ? "libopenvino.so"
                     : "libopenvino.dylib";
 
-                var handle = NativeLibrary.TryLoad(openvinoLib, out _);
-                if (handle != IntPtr.Zero)
+                if (NativeLibrary.TryLoad(openvinoLib, out var handle))
                 {
                     NativeLibrary.Free(handle);
                     return true;

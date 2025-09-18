@@ -483,7 +483,9 @@ public class Florence2Processor : IDisposable
         }
 
         _processingSemaphore?.Dispose();
-        _tokenizer?.Dispose();
+
+        // Tokenizer doesn't implement IDisposable
+        _tokenizer = null;
 
         _disposed = true;
     }

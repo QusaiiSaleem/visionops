@@ -1,0 +1,251 @@
+name: Build Full Self-Contained Installer
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-installer:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup .NET 8
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Setup NSIS
+      run: |
+        choco install nsis -y
+        $env:PATH += ";C:\Program Files (x86)\NSIS"
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build Service (Self-Contained)
+      run: |
+        dotnet publish src/VisionOps.Service/VisionOps.Service.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=false `
+          -p:PublishReadyToRun=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -o publish/Service
+
+    - name: Build UI (Self-Contained)
+      run: |
+        dotnet publish src/VisionOps.UI/VisionOps.UI.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained true `
+          -p:PublishSingleFile=false `
+          -p:PublishReadyToRun=true `
+          -p:IncludeNativeLibrariesForSelfExtract=true `
+          -p:UseWPF=true `
+          -o publish/UI
+
+    - name: Download AI Models
+      run: |
+        $modelsDir = "publish/models"
+        New-Item -ItemType Directory -Force -Path $modelsDir
+
+        Write-Host "Downloading YOLOv8n model..."
+        Invoke-WebRequest -Uri "https://github.com/ultralytics/assets/releases/download/v8.0.0/yolov8n.onnx" `
+          -OutFile "$modelsDir/yolov8n.onnx"
+
+        Write-Host "Downloading MobileNetV3 model..."
+        Invoke-WebRequest -Uri "https://github.com/onnx/models/raw/main/validated/vision/classification/mobilenet/model/mobilenetv3-large-1.0-224.onnx" `
+          -OutFile "$modelsDir/mobilenetv3-large.onnx"
+
+        Write-Host "Models downloaded successfully"
+        Get-ChildItem $modelsDir
+
+    - name: Create Installer Structure
+      run: |
+        $installerDir = "installer"
+        New-Item -ItemType Directory -Force -Path "$installerDir/VisionOps"
+
+        # Copy all published files
+        Copy-Item -Recurse -Force "publish/Service/*" "$installerDir/VisionOps/Service/"
+        Copy-Item -Recurse -Force "publish/UI/*" "$installerDir/VisionOps/UI/"
+        Copy-Item -Recurse -Force "publish/models" "$installerDir/VisionOps/"
+
+        # Create data directories
+        New-Item -ItemType Directory -Force -Path "$installerDir/VisionOps/data"
+        New-Item -ItemType Directory -Force -Path "$installerDir/VisionOps/logs"
+        New-Item -ItemType Directory -Force -Path "$installerDir/VisionOps/config"
+
+    - name: Create NSIS Script
+      run: |
+        @'
+        !include "MUI2.nsh"
+        !include "x64.nsh"
+
+        Name "VisionOps"
+        OutFile "VisionOps-Setup.exe"
+        InstallDir "$PROGRAMFILES64\VisionOps"
+        RequestExecutionLevel admin
+
+        ; Version info
+        VIProductVersion "1.0.0.0"
+        VIFileVersion "1.0.0.0"
+        VIAddVersionKey "ProductName" "VisionOps"
+        VIAddVersionKey "CompanyName" "VisionOps Team"
+        VIAddVersionKey "FileDescription" "Edge Video Analytics Platform"
+        VIAddVersionKey "FileVersion" "1.0.0"
+
+        ; MUI Settings
+        !define MUI_ABORTWARNING
+        !define MUI_ICON "${NSISDIR}\Contrib\Graphics\Icons\modern-install.ico"
+        !define MUI_UNICON "${NSISDIR}\Contrib\Graphics\Icons\modern-uninstall.ico"
+
+        ; Pages
+        !insertmacro MUI_PAGE_WELCOME
+        !insertmacro MUI_PAGE_LICENSE "LICENSE.txt"
+        !insertmacro MUI_PAGE_DIRECTORY
+        !insertmacro MUI_PAGE_INSTFILES
+        !insertmacro MUI_PAGE_FINISH
+
+        !insertmacro MUI_UNPAGE_CONFIRM
+        !insertmacro MUI_UNPAGE_INSTFILES
+
+        !insertmacro MUI_LANGUAGE "English"
+
+        Section "VisionOps Core" SEC_CORE
+          SetOutPath "$INSTDIR"
+
+          ; Copy all files
+          File /r "installer\VisionOps\*.*"
+
+          ; Create Start Menu shortcuts
+          CreateDirectory "$SMPROGRAMS\VisionOps"
+          CreateShortcut "$SMPROGRAMS\VisionOps\VisionOps Configuration.lnk" "$INSTDIR\UI\VisionOps.UI.exe"
+          CreateShortcut "$SMPROGRAMS\VisionOps\Uninstall.lnk" "$INSTDIR\Uninstall.exe"
+
+          ; Create Desktop shortcut
+          CreateShortcut "$DESKTOP\VisionOps.lnk" "$INSTDIR\UI\VisionOps.UI.exe"
+
+          ; Install service
+          DetailPrint "Installing VisionOps Service..."
+          ExecWait 'sc create VisionOps binPath="$INSTDIR\Service\VisionOps.Service.exe" start=auto DisplayName="VisionOps Analytics Service"'
+          ExecWait 'sc description VisionOps "Edge video analytics platform with AI-powered monitoring"'
+
+          ; Configure firewall
+          DetailPrint "Configuring Windows Firewall..."
+          ExecWait 'netsh advfirewall firewall add rule name="VisionOps Service" dir=in action=allow program="$INSTDIR\Service\VisionOps.Service.exe" enable=yes'
+          ExecWait 'netsh advfirewall firewall add rule name="VisionOps UI" dir=in action=allow program="$INSTDIR\UI\VisionOps.UI.exe" enable=yes'
+
+          ; Start service
+          DetailPrint "Starting VisionOps Service..."
+          ExecWait 'sc start VisionOps'
+
+          ; Write uninstaller
+          WriteUninstaller "$INSTDIR\Uninstall.exe"
+
+          ; Registry for Add/Remove Programs
+          WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps" "DisplayName" "VisionOps"
+          WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps" "UninstallString" "$INSTDIR\Uninstall.exe"
+          WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps" "InstallLocation" "$INSTDIR"
+          WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps" "DisplayIcon" "$INSTDIR\UI\VisionOps.UI.exe"
+          WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps" "Publisher" "VisionOps Team"
+          WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps" "DisplayVersion" "1.0.0"
+          WriteRegDWORD HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps" "EstimatedSize" 1048576 ; 1GB in KB
+
+        SectionEnd
+
+        Section "Uninstall"
+          ; Stop and remove service
+          ExecWait 'sc stop VisionOps'
+          ExecWait 'sc delete VisionOps'
+
+          ; Remove firewall rules
+          ExecWait 'netsh advfirewall firewall delete rule name="VisionOps Service"'
+          ExecWait 'netsh advfirewall firewall delete rule name="VisionOps UI"'
+
+          ; Delete files
+          Delete "$INSTDIR\*.*"
+          RMDir /r "$INSTDIR"
+
+          ; Delete shortcuts
+          Delete "$SMPROGRAMS\VisionOps\*.*"
+          RMDir "$SMPROGRAMS\VisionOps"
+          Delete "$DESKTOP\VisionOps.lnk"
+
+          ; Remove registry
+          DeleteRegKey HKLM "Software\Microsoft\Windows\CurrentVersion\Uninstall\VisionOps"
+        SectionEnd
+        '@ | Out-File -FilePath "VisionOps.nsi" -Encoding UTF8
+
+    - name: Create License File
+      run: |
+        @'
+        VisionOps - Edge Video Analytics Platform
+
+        Copyright (c) 2025 VisionOps Team
+
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to use
+        the Software for video analytics and monitoring purposes.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+        '@ | Out-File -FilePath "LICENSE.txt" -Encoding UTF8
+
+    - name: Build NSIS Installer
+      run: |
+        & "C:\Program Files (x86)\NSIS\makensis.exe" VisionOps.nsi
+
+    - name: Get Installer Size
+      run: |
+        $file = Get-Item "VisionOps-Setup.exe"
+        $sizeMB = [math]::Round($file.Length / 1MB, 2)
+        Write-Host "Installer size: $sizeMB MB"
+
+    - name: Upload Installer
+      uses: actions/upload-artifact@v4
+      with:
+        name: VisionOps-Full-Installer
+        path: VisionOps-Setup.exe
+
+    - name: Create Release (if tagged)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: VisionOps-Setup.exe
+        body: |
+          ## VisionOps ${{ github.ref_name }} - Complete Installer
+
+          ### 🎯 One-Click Installation
+          This is a complete, self-contained installer that includes:
+          - ✅ All VisionOps binaries
+          - ✅ .NET 8 Runtime (bundled)
+          - ✅ AI Models (YOLOv8, MobileNet)
+          - ✅ Windows Service setup
+          - ✅ Firewall configuration
+          - ✅ Start Menu shortcuts
+
+          ### 📦 Installation
+          1. Download `VisionOps-Setup.exe`
+          2. Run as Administrator
+          3. Click through the installer
+          4. VisionOps is ready to use!
+
+          ### 💾 Size
+          ~800MB-1GB (includes everything needed)
+
+          ### 🚀 Features
+          - Production-hardened Windows Service
+          - Memory leak prevention
+          - Thermal management
+          - Auto-update support
+          - AI-powered monitoring
+
+          No additional downloads or builds required!
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
