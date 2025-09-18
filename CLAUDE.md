@@ -15,6 +15,16 @@
 
 VisionOps is a production-grade edge video analytics platform that transforms standard Windows office PCs into intelligent surveillance systems. The system processes camera streams locally using AI (YOLOv8 + Florence-2), extracting operational insights without uploading video data, ensuring privacy compliance and bandwidth efficiency.
 
+### 📦 Repository Information
+**GitHub Repository**: https://github.com/QusaiiSaleem/visionops
+
+**Implementation Status**:
+1. ✅ Created public GitHub repository
+2. ✅ Pushed all 167 files (complete Phase 0 implementation)
+3. ✅ Updated auto-update URLs to point to production repo
+4. ✅ Added GitHub Actions workflow for automated builds
+5. ✅ Configured Velopack for auto-updates from GitHub releases
+
 ### Core System Components
 
 **Edge Components (Windows PC):**
