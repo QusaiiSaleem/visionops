@@ -71,34 +71,3 @@ public class FrameDimensions
     public int Channels { get; set; } = 3;
 }
 
-/// <summary>
-/// Object detection result
-/// </summary>
-public class Detection
-{
-    /// <summary>
-    /// Object class name (person, vehicle, etc.)
-    /// </summary>
-    public string ClassName { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Confidence score (0-1)
-    /// </summary>
-    public float Confidence { get; set; }
-
-    /// <summary>
-    /// Bounding box coordinates
-    /// </summary>
-    public BoundingBox BoundingBox { get; set; } = new();
-}
-
-/// <summary>
-/// Bounding box for detected object
-/// </summary>
-public class BoundingBox
-{
-    public int X { get; set; }
-    public int Y { get; set; }
-    public int Width { get; set; }
-    public int Height { get; set; }
-}
