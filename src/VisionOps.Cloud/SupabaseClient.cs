@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Polly;
 using Polly.CircuitBreaker;
 using Supabase;
+using Supabase.Postgrest.Models;
 using System.Text.Json;
 
 namespace VisionOps.Cloud;
@@ -105,7 +106,7 @@ public class SupabaseClient : IDisposable
     /// <summary>
     /// Insert batch of records with retry logic
     /// </summary>
-    public async Task<bool> InsertBatchAsync<T>(string tableName, List<T> records) where T : class
+    public async Task<bool> InsertBatchAsync<T>(string tableName, List<T> records) where T : BaseModel, new()
     {
         if (!records.Any()) return true;
 
@@ -136,7 +137,7 @@ public class SupabaseClient : IDisposable
     /// <summary>
     /// Upsert batch of records (insert or update)
     /// </summary>
-    public async Task<bool> UpsertBatchAsync<T>(string tableName, List<T> records) where T : class
+    public async Task<bool> UpsertBatchAsync<T>(string tableName, List<T> records) where T : BaseModel, new()
     {
         if (!records.Any()) return true;
 
@@ -170,7 +171,7 @@ public class SupabaseClient : IDisposable
     public async Task<List<T>?> QueryAsync<T>(
         string tableName,
         Dictionary<string, object>? filters = null,
-        int limit = 100) where T : class
+        int limit = 100) where T : BaseModel, new()
     {
         try
         {
@@ -208,7 +209,7 @@ public class SupabaseClient : IDisposable
     /// </summary>
     public async Task<bool> DeleteWhereAsync<T>(
         string tableName,
-        Dictionary<string, object> filters) where T : class
+        Dictionary<string, object> filters) where T : BaseModel, new()
     {
         try
         {
@@ -320,7 +321,7 @@ public class ConnectionStatus
 /// Dummy class for health check queries
 /// </summary>
 [Supabase.Postgrest.Attributes.Table("configurations")]
-public class SupabaseHealthCheck
+public class SupabaseHealthCheck : BaseModel
 {
     [Supabase.Postgrest.Attributes.PrimaryKey("id", false)]
     public string Id { get; set; } = string.Empty;

@@ -104,11 +104,14 @@ public class OnvifDiscoveryService
             // Build RTSP URL - this is a common pattern for most ONVIF cameras
             // The actual URL might need to be obtained through ONVIF GetStreamUri
             // For now, we'll use a common pattern
-            var rtspUrl = BuildRtspUrl(device.Address);
-            if (!string.IsNullOrEmpty(rtspUrl))
+            if (IPAddress.TryParse(device.Address, out var ipAddress))
             {
-                camera.RtspUrl = rtspUrl;
-                return camera;
+                var rtspUrl = BuildRtspUrl(ipAddress);
+                if (!string.IsNullOrEmpty(rtspUrl))
+                {
+                    camera.RtspUrl = rtspUrl;
+                    return camera;
+                }
             }
 
             _logger.LogWarning("Could not build RTSP URL for device at {Address}", device.Address);

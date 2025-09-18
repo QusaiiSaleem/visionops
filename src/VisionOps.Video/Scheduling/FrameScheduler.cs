@@ -3,6 +3,7 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using OpenCvSharp;
 using VisionOps.Core.Models;
+using VisionOps.Video.Memory;
 using VisionOps.Video.Processing;
 
 namespace VisionOps.Video.Scheduling;
@@ -14,6 +15,7 @@ namespace VisionOps.Video.Scheduling;
 public class FrameScheduler : IDisposable
 {
     private readonly ILogger<FrameScheduler> _logger;
+    private readonly FrameBufferPool _bufferPool;
     private readonly Dictionary<string, CameraProcessor> _cameras = new();
     private readonly Channel<FrameData> _frameQueue;
     private readonly CircularFrameBuffer _frameBuffer;
@@ -27,9 +29,10 @@ public class FrameScheduler : IDisposable
     private const int FrameQueueSize = 100; // Maximum frames in processing queue
     private const int ProcessingDelayMs = 100; // Delay between processing cycles
 
-    public FrameScheduler(ILogger<FrameScheduler> logger)
+    public FrameScheduler(ILogger<FrameScheduler> logger, FrameBufferPool bufferPool)
     {
         _logger = logger;
+        _bufferPool = bufferPool;
 
         // Create bounded channel to prevent memory overflow
         var options = new BoundedChannelOptions(FrameQueueSize)
@@ -41,7 +44,7 @@ public class FrameScheduler : IDisposable
         _frameQueue = Channel.CreateBounded<FrameData>(options);
 
         // Initialize circular buffer for frame memory management
-        _frameBuffer = new CircularFrameBuffer(maxFrames: 30);
+        _frameBuffer = new CircularFrameBuffer("scheduler", _bufferPool, _logger as ILogger, 30);
     }
 
     /// <summary>
@@ -65,7 +68,7 @@ public class FrameScheduler : IDisposable
                 return false;
             }
 
-            var processor = new CameraProcessor(camera, _logger);
+            var processor = new CameraProcessor(camera, _logger, _bufferPool);
             _cameras[camera.CameraId] = processor;
 
             _logger.LogInformation("Added camera {Name} ({Id}) to scheduler",
@@ -290,11 +293,13 @@ public class FrameScheduler : IDisposable
         private readonly object _queueLock = new();
         private long _frameCounter;
 
-        public CameraProcessor(CameraConfig camera, ILogger logger)
+        public CameraProcessor(CameraConfig camera, ILogger logger, FrameBufferPool bufferPool)
         {
             Camera = camera;
             _logger = logger;
             _ffmpeg = new FFmpegStreamProcessor(
+                camera.Id,
+                bufferPool,
                 logger as ILogger<FFmpegStreamProcessor> ??
                 throw new ArgumentException("Invalid logger type"));
         }
@@ -306,7 +311,7 @@ public class FrameScheduler : IDisposable
                 // Start FFmpeg if not running
                 if (!_ffmpeg.IsRunning)
                 {
-                    await _ffmpeg.StartProcess(
+                    await _ffmpeg.StartProcessAsync(
                         Camera.GetAuthenticatedUrl(),
                         OnFrameReceived,
                         cancellationToken);
