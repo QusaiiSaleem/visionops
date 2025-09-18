@@ -24,8 +24,8 @@ git add .
 # Commit
 git commit -m "Initial commit - VisionOps Phase 0 Complete"
 
-# Add your GitHub repo as origin (replace with YOUR username/repo)
-git remote add origin https://github.com/YOUR_USERNAME/visionops.git
+# Add your GitHub repo as origin
+git remote add origin https://github.com/QusaiiSaleem/visionops.git
 
 # Push to GitHub
 git push -u origin main
@@ -39,7 +39,7 @@ Since you're on macOS, you need to get the code to a Windows machine:
 **Option 1: Clone from GitHub (after Step 1)**
 ```powershell
 # On Windows machine
-git clone https://github.com/YOUR_USERNAME/visionops.git
+git clone https://github.com/QusaiiSaleem/visionops.git
 cd visionops
 ```
 
@@ -66,7 +66,7 @@ dotnet tool install -g velopack
 ## Step 3: Create GitHub Release
 
 ### Option A: Manual Release (Easier)
-1. Go to `https://github.com/YOUR_USERNAME/visionops/releases/new`
+1. Go to `https://github.com/QusaiiSaleem/visionops/releases/new`
 2. Click "Choose a tag" and create new tag: `v1.0.0`
 3. Release title: "VisionOps v1.0.0 - Production Ready"
 4. Upload files:
@@ -125,14 +125,14 @@ Once your GitHub repo is created, update the configuration:
 
 **Edit:** `src/VisionOps.UI/Services/AutoUpdateService.cs`
 ```csharp
-// Line 24 - Update with YOUR GitHub repo
-_updateFeedUrl = "https://github.com/YOUR_USERNAME/visionops/releases";
+// Line 30 - Already updated!
+_updateFeedUrl = "https://github.com/QusaiiSaleem/visionops/releases";
 ```
 
 **Edit:** `src/VisionOps.UI/appsettings.json`
 ```json
 "AutoUpdate": {
-    "UpdateFeedUrl": "https://github.com/YOUR_USERNAME/visionops/releases"
+    "UpdateFeedUrl": "https://github.com/QusaiiSaleem/visionops/releases"
 }
 ```
 
@@ -195,7 +195,7 @@ dotnet clean
 
 ## 🎯 What Happens After Deployment
 
-1. **Users Download MSI** from `https://github.com/YOUR_USERNAME/visionops/releases`
+1. **Users Download MSI** from `https://github.com/QusaiiSaleem/visionops/releases`
 2. **Install and Run** - Service starts automatically
 3. **AI Models Download** - Automatically from official sources
 4. **Configure** - Add cameras and Supabase (optional)
