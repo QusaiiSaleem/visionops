@@ -1,0 +1,30 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Supabase client -->
+    <PackageReference Include="Supabase" Version="0.13.*" />
+
+    <!-- WebP compression for image uploads -->
+    <PackageReference Include="WebP.Net" Version="1.0.0" />
+
+    <!-- Retry policies -->
+    <PackageReference Include="Polly" Version="8.2.0" />
+
+    <!-- Logging -->
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.*" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisionOps.Core\VisionOps.Core.csproj" />
+    <ProjectReference Include="..\VisionOps.Data\VisionOps.Data.csproj" />
+  </ItemGroup>
+
+</Project>

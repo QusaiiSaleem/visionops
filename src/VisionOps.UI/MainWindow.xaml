@@ -1,0 +1,441 @@
+<Window x:Class="VisionOps.UI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+        mc:Ignorable="d"
+        Title="VisionOps Configuration"
+        Height="650" Width="950"
+        WindowStartupLocation="CenterScreen"
+        TextElement.Foreground="{DynamicResource MaterialDesignBody}"
+        Background="{DynamicResource MaterialDesignPaper}"
+        TextElement.FontFamily="Roboto"
+        TextElement.FontSize="14"
+        Icon="visionops.ico">
+
+    <materialDesign:DialogHost>
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Header -->
+            <materialDesign:ColorZone Grid.Row="0" Mode="PrimaryMid" Padding="16" materialDesign:ElevationAssist.Elevation="Dp4">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Orientation="Horizontal" Grid.Column="0">
+                        <materialDesign:PackIcon Kind="VideoOutline" Height="32" Width="32" VerticalAlignment="Center"/>
+                        <TextBlock Text="VisionOps" VerticalAlignment="Center" Margin="10,0" FontSize="20" FontWeight="Medium"/>
+                        <TextBlock Text="Edge Analytics Platform" VerticalAlignment="Center" Opacity="0.8" FontSize="14"/>
+                    </StackPanel>
+
+                    <!-- Service Status Indicator -->
+                    <StackPanel Orientation="Horizontal" Grid.Column="2" VerticalAlignment="Center">
+                        <TextBlock Text="Service:" Margin="0,0,5,0" VerticalAlignment="Center"/>
+                        <Ellipse Width="12" Height="12" Name="ServiceStatusIndicator" Fill="Gray" Margin="0,0,5,0"/>
+                        <TextBlock Name="ServiceStatusText" Text="Checking..." VerticalAlignment="Center"/>
+
+                        <!-- Update notification -->
+                        <Button Name="UpdateButton"
+                                Style="{StaticResource MaterialDesignFlatButton}"
+                                Margin="20,0,0,0"
+                                Visibility="Collapsed"
+                                Click="UpdateButton_Click">
+                            <StackPanel Orientation="Horizontal">
+                                <materialDesign:PackIcon Kind="Download" Margin="0,0,5,0"/>
+                                <TextBlock Text="Update Available" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+            </materialDesign:ColorZone>
+
+            <!-- Main Content -->
+            <TabControl Grid.Row="1" materialDesign:ColorZoneAssist.Mode="PrimaryMid" Style="{StaticResource MaterialDesignNavigationRailTabControl}">
+
+                <!-- Service Control Tab -->
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel>
+                            <materialDesign:PackIcon Kind="Cog" Width="24" Height="24" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Service" HorizontalAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+                    </TabItem.Header>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="Service Control" Style="{StaticResource MaterialDesignHeadline5TextBlock}" Margin="0,0,0,20"/>
+
+                            <!-- Service Control Card -->
+                            <materialDesign:Card Padding="16" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Windows Service Management" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="VisionOps Analytics Service" FontSize="16"/>
+                                            <TextBlock Name="ServiceDetailStatus" Text="Status: Unknown" Opacity="0.7" Margin="0,4,0,0"/>
+                                            <TextBlock Name="ServiceUptime" Text="Uptime: --" Opacity="0.7" Margin="0,2,0,0"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0">
+                                            <Button Name="StartServiceButton"
+                                                    Style="{StaticResource MaterialDesignRaisedButton}"
+                                                    Content="Start"
+                                                    Margin="0,0,8,0"
+                                                    Click="StartService_Click"/>
+                                            <Button Name="StopServiceButton"
+                                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                                    Content="Stop"
+                                                    Margin="0,0,8,0"
+                                                    Click="StopService_Click"/>
+                                            <Button Name="RestartServiceButton"
+                                                    Style="{StaticResource MaterialDesignOutlinedButton}"
+                                                    Content="Restart"
+                                                    Click="RestartService_Click"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </materialDesign:Card>
+
+                            <!-- System Health Card -->
+                            <materialDesign:Card Padding="16" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="System Health" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- CPU Usage -->
+                                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                            <TextBlock Text="CPU Usage" Opacity="0.7" FontSize="12"/>
+                                            <TextBlock Name="CpuUsageText" Text="--%" FontSize="24" FontWeight="Medium"/>
+                                            <ProgressBar Name="CpuUsageBar" Value="0" Maximum="100" Height="4" Margin="0,4,0,0"/>
+                                        </StackPanel>
+
+                                        <!-- Memory Usage -->
+                                        <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                                            <TextBlock Text="Memory" Opacity="0.7" FontSize="12"/>
+                                            <TextBlock Name="MemoryUsageText" Text="-- GB" FontSize="24" FontWeight="Medium"/>
+                                            <ProgressBar Name="MemoryUsageBar" Value="0" Maximum="6000" Height="4" Margin="0,4,0,0"/>
+                                        </StackPanel>
+
+                                        <!-- Temperature -->
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="CPU Temp" Opacity="0.7" FontSize="12"/>
+                                            <TextBlock Name="TemperatureText" Text="--°C" FontSize="24" FontWeight="Medium"/>
+                                            <ProgressBar Name="TemperatureBar" Value="0" Maximum="100" Height="4" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </materialDesign:Card>
+
+                            <!-- Phase 0 Status Card -->
+                            <materialDesign:Card Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="Production Hardening Status" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <ItemsControl Name="Phase0StatusList">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Grid Margin="0,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <materialDesign:PackIcon Grid.Column="0"
+                                                                            Kind="{Binding Icon}"
+                                                                            Foreground="{Binding Color}"
+                                                                            Margin="0,0,8,0"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name}"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Status}" Opacity="0.7"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </materialDesign:Card>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Camera Configuration Tab -->
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel>
+                            <materialDesign:PackIcon Kind="Camera" Width="24" Height="24" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Cameras" HorizontalAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+                    </TabItem.Header>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="Camera Configuration" Style="{StaticResource MaterialDesignHeadline5TextBlock}" Margin="0,0,0,20"/>
+
+                            <!-- Add Camera Card -->
+                            <materialDesign:Card Padding="16" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Add Camera Manually" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="200"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBox Name="CameraNameInput"
+                                                Grid.Column="0"
+                                                materialDesign:HintAssist.Hint="Camera Name"
+                                                Style="{StaticResource MaterialDesignFloatingHintTextBox}"
+                                                Margin="0,0,8,0"/>
+
+                                        <TextBox Name="RtspUrlInput"
+                                                Grid.Column="1"
+                                                materialDesign:HintAssist.Hint="RTSP URL (e.g., rtsp://192.168.1.100:554/stream)"
+                                                Style="{StaticResource MaterialDesignFloatingHintTextBox}"
+                                                Margin="0,0,8,0"/>
+
+                                        <Button Grid.Column="2"
+                                                Style="{StaticResource MaterialDesignRaisedButton}"
+                                                Content="Add Camera"
+                                                Click="AddCamera_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                            </materialDesign:Card>
+
+                            <!-- Camera List -->
+                            <materialDesign:Card Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="Configured Cameras" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <DataGrid Name="CameraGrid"
+                                              AutoGenerateColumns="False"
+                                              CanUserAddRows="False"
+                                              materialDesign:DataGridAssist.CellPadding="13 8 8 8"
+                                              materialDesign:DataGridAssist.ColumnHeaderPadding="8">
+                                        <DataGrid.Columns>
+                                            <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="150"/>
+                                            <DataGridTextColumn Header="RTSP URL" Binding="{Binding RtspUrl}" Width="*"/>
+                                            <DataGridTextColumn Header="Status" Binding="{Binding Status}" Width="100"/>
+                                            <DataGridTemplateColumn Header="Actions" Width="150">
+                                                <DataGridTemplateColumn.CellTemplate>
+                                                    <DataTemplate>
+                                                        <StackPanel Orientation="Horizontal">
+                                                            <Button Style="{StaticResource MaterialDesignFlatButton}"
+                                                                    Content="Test"
+                                                                    Click="TestCamera_Click"
+                                                                    CommandParameter="{Binding}"/>
+                                                            <Button Style="{StaticResource MaterialDesignFlatButton}"
+                                                                    Content="Remove"
+                                                                    Click="RemoveCamera_Click"
+                                                                    CommandParameter="{Binding}"/>
+                                                        </StackPanel>
+                                                    </DataTemplate>
+                                                </DataGridTemplateColumn.CellTemplate>
+                                            </DataGridTemplateColumn>
+                                        </DataGrid.Columns>
+                                    </DataGrid>
+
+                                    <TextBlock Text="Note: Camera discovery will be available in a future update"
+                                              Opacity="0.6"
+                                              FontStyle="Italic"
+                                              Margin="0,8,0,0"/>
+                                </StackPanel>
+                            </materialDesign:Card>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Settings Tab -->
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel>
+                            <materialDesign:PackIcon Kind="Settings" Width="24" Height="24" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Settings" HorizontalAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+                    </TabItem.Header>
+
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="20">
+                        <StackPanel>
+                            <TextBlock Text="Application Settings" Style="{StaticResource MaterialDesignHeadline5TextBlock}" Margin="0,0,0,20"/>
+
+                            <!-- Supabase Configuration -->
+                            <materialDesign:Card Padding="16" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Cloud Synchronization (Supabase)" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <TextBox Name="SupabaseUrlInput"
+                                            materialDesign:HintAssist.Hint="Supabase URL"
+                                            Style="{StaticResource MaterialDesignFloatingHintTextBox}"
+                                            Margin="0,0,0,16"/>
+
+                                    <PasswordBox Name="SupabaseKeyInput"
+                                                materialDesign:HintAssist.Hint="Supabase Anon Key"
+                                                Style="{StaticResource MaterialDesignFloatingHintPasswordBox}"
+                                                Margin="0,0,0,16"/>
+
+                                    <StackPanel Orientation="Horizontal">
+                                        <Button Style="{StaticResource MaterialDesignRaisedButton}"
+                                                Content="Test Connection"
+                                                Margin="0,0,8,0"
+                                                Click="TestSupabase_Click"/>
+                                        <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                                                Content="Save Settings"
+                                                Click="SaveSettings_Click"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </materialDesign:Card>
+
+                            <!-- Performance Settings -->
+                            <materialDesign:Card Padding="16" Margin="0,0,0,16">
+                                <StackPanel>
+                                    <TextBlock Text="Performance Settings" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="200"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                            <RowDefinition Height="Auto"/>
+                                        </Grid.RowDefinitions>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="0" Text="Max Cameras:" VerticalAlignment="Center"/>
+                                        <Slider Grid.Row="0" Grid.Column="1" Name="MaxCamerasSlider"
+                                               Minimum="1" Maximum="5" Value="5"
+                                               TickFrequency="1" IsSnapToTickEnabled="True"
+                                               TickPlacement="BottomRight"
+                                               Margin="8,0,0,16"/>
+
+                                        <TextBlock Grid.Row="1" Grid.Column="0" Text="Thermal Limit (°C):" VerticalAlignment="Center"/>
+                                        <Slider Grid.Row="1" Grid.Column="1" Name="ThermalLimitSlider"
+                                               Minimum="60" Maximum="80" Value="70"
+                                               TickFrequency="5" IsSnapToTickEnabled="True"
+                                               TickPlacement="BottomRight"
+                                               Margin="8,0,0,16"/>
+
+                                        <TextBlock Grid.Row="2" Grid.Column="0" Text="Memory Limit (GB):" VerticalAlignment="Center"/>
+                                        <Slider Grid.Row="2" Grid.Column="1" Name="MemoryLimitSlider"
+                                               Minimum="4" Maximum="12" Value="6"
+                                               TickFrequency="1" IsSnapToTickEnabled="True"
+                                               TickPlacement="BottomRight"
+                                               Margin="8,0,0,0"/>
+                                    </Grid>
+                                </StackPanel>
+                            </materialDesign:Card>
+
+                            <!-- Auto-Update Settings -->
+                            <materialDesign:Card Padding="16">
+                                <StackPanel>
+                                    <TextBlock Text="Automatic Updates" FontWeight="Medium" Margin="0,0,0,16"/>
+
+                                    <CheckBox Name="AutoUpdateCheckbox"
+                                             Content="Enable automatic updates"
+                                             IsChecked="True"
+                                             Margin="0,0,0,8"/>
+
+                                    <TextBlock Name="UpdateStatusText"
+                                              Text="Current version: 1.0.0"
+                                              Opacity="0.7"
+                                              Margin="0,0,0,8"/>
+
+                                    <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                                            Content="Check for Updates Now"
+                                            Click="CheckUpdates_Click"/>
+                                </StackPanel>
+                            </materialDesign:Card>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- Logs Tab -->
+                <TabItem>
+                    <TabItem.Header>
+                        <StackPanel>
+                            <materialDesign:PackIcon Kind="FileDocument" Width="24" Height="24" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Logs" HorizontalAlignment="Center" FontSize="12"/>
+                        </StackPanel>
+                    </TabItem.Header>
+
+                    <Grid Margin="20">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0" Text="Service Logs" Style="{StaticResource MaterialDesignHeadline5TextBlock}" Margin="0,0,0,20"/>
+
+                        <materialDesign:Card Grid.Row="1" Padding="16">
+                            <Grid>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto"/>
+                                    <RowDefinition Height="*"/>
+                                </Grid.RowDefinitions>
+
+                                <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,16">
+                                    <Button Style="{StaticResource MaterialDesignRaisedButton}"
+                                            Content="Refresh"
+                                            Margin="0,0,8,0"
+                                            Click="RefreshLogs_Click"/>
+                                    <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                                            Content="Clear"
+                                            Margin="0,0,8,0"
+                                            Click="ClearLogs_Click"/>
+                                    <Button Style="{StaticResource MaterialDesignOutlinedButton}"
+                                            Content="Export"
+                                            Click="ExportLogs_Click"/>
+                                </StackPanel>
+
+                                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                                    <TextBox Name="LogTextBox"
+                                            IsReadOnly="True"
+                                            FontFamily="Consolas"
+                                            FontSize="12"
+                                            Background="#1E1E1E"
+                                            Foreground="#D4D4D4"
+                                            TextWrapping="Wrap"/>
+                                </ScrollViewer>
+                            </Grid>
+                        </materialDesign:Card>
+                    </Grid>
+                </TabItem>
+            </TabControl>
+
+            <!-- Status Bar -->
+            <StatusBar Grid.Row="2" Background="{DynamicResource MaterialDesignToolBarBackground}">
+                <StatusBarItem>
+                    <TextBlock Name="StatusBarText" Text="Ready" />
+                </StatusBarItem>
+                <Separator/>
+                <StatusBarItem>
+                    <TextBlock Name="StatusBarTime" />
+                </StatusBarItem>
+                <StatusBarItem HorizontalAlignment="Right">
+                    <TextBlock Text="Phase 0: Production Hardening Complete" FontWeight="Medium" Foreground="Green"/>
+                </StatusBarItem>
+            </StatusBar>
+        </Grid>
+    </materialDesign:DialogHost>
+</Window>

@@ -1,0 +1,45 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <UseWPF>true</UseWPF>
+    <LangVersion>12</LangVersion>
+    <WarningsAsErrors>nullable</WarningsAsErrors>
+    <ApplicationIcon>visionops.ico</ApplicationIcon>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PlatformTarget>x64</PlatformTarget>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- WPF Material Design -->
+    <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
+
+    <!-- MVVM framework -->
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
+
+    <!-- Dependency Injection -->
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.*" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.*" />
+
+    <!-- Configuration -->
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.*" />
+
+    <!-- Auto-updates -->
+    <PackageReference Include="Velopack" Version="0.0.359" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisionOps.Core\VisionOps.Core.csproj" />
+    <ProjectReference Include="..\VisionOps.Data\VisionOps.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,294 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util"
+     xmlns:netfx="http://wixtoolset.org/schemas/v4/wxs/netfx"
+     xmlns:fire="http://wixtoolset.org/schemas/v4/wxs/firewall">
+
+  <!-- Product Information -->
+  <Package Name="VisionOps Edge Analytics"
+           Manufacturer="VisionOps Inc."
+           Version="1.0.0.0"
+           UpgradeCode="A1B2C3D4-E5F6-7890-1234-567890ABCDEF"
+           Scope="perMachine"
+           InstallerVersion="500"
+           Compressed="true">
+
+    <!-- Package Properties -->
+    <SummaryInformation
+      Description="VisionOps Edge Video Analytics Platform - Production-hardened 24/7 video analytics for Windows"
+      Manufacturer="VisionOps Inc."
+      Keywords="Video Analytics, AI, Edge Computing, Surveillance" />
+
+    <!-- Media for installation files -->
+    <Media Id="1" Cabinet="VisionOps.cab" EmbedCab="yes" />
+
+    <!-- Icon for Add/Remove Programs -->
+    <Icon Id="VisionOps.ico" SourceFile="$(var.ProjectDir)..\..\src\VisionOps.UI\visionops.ico" />
+    <Property Id="ARPPRODUCTICON" Value="VisionOps.ico" />
+
+    <!-- Properties for UI -->
+    <Property Id="ARPURLINFOABOUT" Value="https://visionops.com" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/visionops/releases" />
+    <Property Id="ARPHELPLINK" Value="https://visionops.com/support" />
+
+    <!-- Launch conditions -->
+    <Launch Condition="Installed OR (VersionNT64 >= 603)"
+            Message="VisionOps requires Windows 10 or later (64-bit)." />
+
+    <!-- Check for .NET 8 Runtime -->
+    <PropertyRef Id="NETFRAMEWORK45" />
+    <Launch Condition="Installed OR WIX_IS_NETFRAMEWORK_48_OR_LATER_INSTALLED"
+            Message="VisionOps requires .NET 8 Runtime. Please download from https://dotnet.microsoft.com/download/dotnet/8.0" />
+
+    <!-- Installation Directory Structure -->
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="VisionOps">
+        <Directory Id="ServiceFolder" Name="Service" />
+        <Directory Id="UIFolder" Name="UI" />
+        <Directory Id="ModelsFolder" Name="models" />
+        <Directory Id="ConfigFolder" Name="config" />
+        <Directory Id="LogsFolder" Name="logs" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Common AppData for service data -->
+    <StandardDirectory Id="CommonAppDataFolder">
+      <Directory Id="VisionOpsDataFolder" Name="VisionOps">
+        <Directory Id="DataFolder" Name="data" />
+        <Directory Id="TempFolder" Name="temp" />
+      </Directory>
+    </StandardDirectory>
+
+    <!-- Features to install -->
+    <Feature Id="Complete" Title="VisionOps Complete Installation" Level="1">
+
+      <!-- Core Service Feature -->
+      <Feature Id="ServiceFeature"
+               Title="VisionOps Service"
+               Description="24/7 Windows Service for video analytics (Required)"
+               Absent="disallow"
+               Level="1">
+        <ComponentGroupRef Id="ServiceComponents" />
+        <ComponentRef Id="ServiceRegistration" />
+        <ComponentRef Id="ServiceConfig" />
+      </Feature>
+
+      <!-- UI Application Feature -->
+      <Feature Id="UIFeature"
+               Title="Configuration UI"
+               Description="Windows application for configuring VisionOps"
+               Level="1">
+        <ComponentGroupRef Id="UIComponents" />
+        <ComponentRef Id="UIShortcuts" />
+      </Feature>
+
+      <!-- AI Models Feature (optional initially) -->
+      <Feature Id="ModelsFeature"
+               Title="AI Models"
+               Description="YOLOv8 and Florence-2 AI models (can be downloaded later)"
+               Level="2">
+        <ComponentGroupRef Id="ModelComponents" />
+      </Feature>
+    </Feature>
+
+    <!-- Windows Service Registration -->
+    <Component Id="ServiceRegistration" Directory="ServiceFolder" Guid="B1C2D3E4-F5A6-7890-1234-567890BCDEFG">
+
+      <!-- Main service executable -->
+      <File Id="ServiceExe"
+            Source="$(var.ArtifactsPath)\Service\VisionOps.Service.exe"
+            KeyPath="true" />
+
+      <!-- Install Windows Service -->
+      <ServiceInstall Id="VisionOpsService"
+                      Name="VisionOps"
+                      DisplayName="VisionOps Analytics Service"
+                      Description="Edge video analytics service with AI-powered object detection and scene understanding"
+                      Type="ownProcess"
+                      Start="auto"
+                      ErrorControl="normal"
+                      Account="LocalSystem"
+                      Vital="true">
+
+        <!-- Service Dependencies -->
+        <ServiceDependency Id="Tcpip" />
+        <ServiceDependency Id="Dhcp" />
+
+        <!-- Service Recovery Actions -->
+        <util:ServiceConfig FirstFailureActionType="restart"
+                           SecondFailureActionType="restart"
+                           ThirdFailureActionType="restart"
+                           RestartServiceDelayInSeconds="30"
+                           ResetPeriodInDays="1" />
+      </ServiceInstall>
+
+      <!-- Control service -->
+      <ServiceControl Id="StartService"
+                      Name="VisionOps"
+                      Start="install"
+                      Stop="both"
+                      Remove="both"
+                      Wait="true" />
+    </Component>
+
+    <!-- Service Configuration Files -->
+    <Component Id="ServiceConfig" Directory="ServiceFolder" Guid="C2D3E4F5-A6B7-8901-2345-678901CDEFGH">
+      <File Id="ServiceAppSettings"
+            Source="$(var.ArtifactsPath)\Service\appsettings.json" />
+      <File Id="ServiceAppSettingsProd"
+            Source="$(var.ArtifactsPath)\Service\appsettings.Production.json" />
+    </Component>
+
+    <!-- UI Shortcuts -->
+    <Component Id="UIShortcuts" Directory="UIFolder" Guid="D3E4F5A6-B7C8-9012-3456-789012DEFGHI">
+      <!-- Start Menu Shortcut -->
+      <Shortcut Id="StartMenuShortcut"
+                Name="VisionOps Configuration"
+                Description="Configure VisionOps video analytics"
+                Target="[UIFolder]VisionOps.UI.exe"
+                WorkingDirectory="UIFolder"
+                Icon="VisionOps.ico"
+                Directory="ProgramMenuFolder">
+        <ShortcutProperty Key="System.AppUserModel.ID" Value="VisionOps.UI" />
+      </Shortcut>
+
+      <!-- Desktop Shortcut (optional) -->
+      <Shortcut Id="DesktopShortcut"
+                Name="VisionOps"
+                Description="VisionOps Configuration"
+                Target="[UIFolder]VisionOps.UI.exe"
+                WorkingDirectory="UIFolder"
+                Icon="VisionOps.ico"
+                Directory="DesktopFolder">
+        <ShortcutProperty Key="System.AppUserModel.ID" Value="VisionOps.UI" />
+      </Shortcut>
+
+      <RegistryValue Root="HKCU"
+                     Key="Software\VisionOps"
+                     Name="installed"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="true" />
+    </Component>
+
+    <!-- Firewall Rules -->
+    <Component Id="FirewallRules" Directory="INSTALLFOLDER" Guid="E4F5A6B7-C8D9-0123-4567-890123EFGHIJ">
+      <!-- Allow VisionOps Service -->
+      <fire:FirewallException Id="ServiceFirewall"
+                             Name="VisionOps Service"
+                             Program="[ServiceFolder]VisionOps.Service.exe"
+                             Scope="any"
+                             Protocol="tcp"
+                             Profile="all" />
+
+      <!-- Allow RTSP traffic -->
+      <fire:FirewallException Id="RTSPFirewall"
+                             Name="VisionOps RTSP"
+                             Port="554"
+                             Protocol="tcp"
+                             Scope="localSubnet"
+                             Profile="all" />
+
+      <!-- Allow ONVIF Discovery -->
+      <fire:FirewallException Id="ONVIFFirewall"
+                             Name="VisionOps ONVIF Discovery"
+                             Port="3702"
+                             Protocol="udp"
+                             Scope="localSubnet"
+                             Profile="all" />
+    </Component>
+
+    <!-- Create necessary folders -->
+    <Component Id="CreateFolders" Directory="VisionOpsDataFolder" Guid="F5A6B7C8-D9E0-1234-5678-901234FGHIJK">
+      <CreateFolder Directory="DataFolder">
+        <Permission User="Everyone" GenericAll="yes" />
+      </CreateFolder>
+      <CreateFolder Directory="TempFolder">
+        <Permission User="Everyone" GenericAll="yes" />
+      </CreateFolder>
+      <CreateFolder Directory="LogsFolder">
+        <Permission User="Everyone" GenericAll="yes" />
+      </CreateFolder>
+    </Component>
+
+    <!-- Registry entries for auto-update -->
+    <Component Id="RegistryEntries" Directory="INSTALLFOLDER" Guid="A6B7C8D9-E0F1-2345-6789-012345GHIJKL">
+      <RegistryKey Root="HKLM" Key="Software\VisionOps">
+        <RegistryValue Name="InstallPath" Type="string" Value="[INSTALLFOLDER]" />
+        <RegistryValue Name="Version" Type="string" Value="$(var.ProductVersion)" />
+        <RegistryValue Name="UpdateFeedUrl" Type="string" Value="https://github.com/visionops/visionops/releases" />
+        <RegistryValue Name="AutoUpdateEnabled" Type="integer" Value="1" />
+      </RegistryKey>
+    </Component>
+
+    <!-- Component Groups (defined separately for organization) -->
+    <ComponentGroup Id="ServiceComponents" Directory="ServiceFolder">
+      <!-- Service files will be harvested using heat.exe -->
+      <Files Include="$(var.ArtifactsPath)\Service\*.*">
+        <Exclude Files="*.pdb;*.xml;appsettings*.json" />
+      </Files>
+    </ComponentGroup>
+
+    <ComponentGroup Id="UIComponents" Directory="UIFolder">
+      <!-- UI files will be harvested using heat.exe -->
+      <Files Include="$(var.ArtifactsPath)\UI\*.*">
+        <Exclude Files="*.pdb;*.xml" />
+      </Files>
+    </ComponentGroup>
+
+    <ComponentGroup Id="ModelComponents" Directory="ModelsFolder">
+      <!-- Model files (if present) -->
+      <Files Include="$(var.ArtifactsPath)\models\*.onnx" />
+    </ComponentGroup>
+
+    <!-- Standard directories -->
+    <StandardDirectory Id="ProgramMenuFolder" />
+    <StandardDirectory Id="DesktopFolder" />
+
+    <!-- Custom Actions -->
+
+    <!-- Check for .NET 8 Runtime -->
+    <CustomAction Id="CheckDotNet8"
+                  ExeCommand="dotnet --list-runtimes"
+                  Property="DOTNET8CHECK"
+                  Execute="immediate"
+                  Return="ignore" />
+
+    <!-- Open configuration UI after installation -->
+    <CustomAction Id="LaunchUI"
+                  FileRef="VisionOps.UI.exe"
+                  ExeCommand=""
+                  Directory="UIFolder"
+                  Execute="immediate"
+                  Return="asyncNoWait"
+                  Impersonate="true" />
+
+    <!-- Installation Sequence -->
+    <InstallExecuteSequence>
+      <!-- Stop service before upgrade -->
+      <StopServices Condition="UPGRADINGPRODUCTCODE" />
+
+      <!-- Custom action to launch UI (optional) -->
+      <Custom Action="LaunchUI" After="InstallFinalize">
+        NOT Installed AND NOT REMOVE AND UILevel > 2
+      </Custom>
+    </InstallExecuteSequence>
+
+    <!-- UI References (for installer UI) -->
+    <UIRef Id="WixUI_FeatureTree" />
+    <UIRef Id="WixUI_ErrorProgressText" />
+
+    <!-- License agreement -->
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectDir)License.rtf" />
+
+    <!-- Custom images for installer -->
+    <WixVariable Id="WixUIBannerBmp" Value="$(var.ProjectDir)Images\banner.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="$(var.ProjectDir)Images\dialog.bmp" />
+
+    <!-- Upgrade handling -->
+    <MajorUpgrade Schedule="afterInstallInitialize"
+                  DowngradeErrorMessage="A newer version of VisionOps is already installed."
+                  AllowSameVersionUpgrades="true" />
+
+  </Package>
+</Wix>

@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <LangVersion>12</LangVersion>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Test frameworks -->
+    <PackageReference Include="xunit" Version="2.6.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
+    <!-- Code coverage -->
+    <PackageReference Include="coverlet.collector" Version="6.0.0">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+
+    <!-- Test SDK -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+
+    <!-- Assertions -->
+    <PackageReference Include="FluentAssertions" Version="6.12.0" />
+
+    <!-- Mocking -->
+    <PackageReference Include="NSubstitute" Version="5.1.0" />
+
+    <!-- Test data builders -->
+    <PackageReference Include="Bogus" Version="35.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\VisionOps.Core\VisionOps.Core.csproj" />
+    <ProjectReference Include="..\VisionOps.Service\VisionOps.Service.csproj" />
+    <ProjectReference Include="..\VisionOps.Video\VisionOps.Video.csproj" />
+    <ProjectReference Include="..\VisionOps.AI\VisionOps.AI.csproj" />
+    <ProjectReference Include="..\VisionOps.Data\VisionOps.Data.csproj" />
+    <ProjectReference Include="..\VisionOps.Cloud\VisionOps.Cloud.csproj" />
+  </ItemGroup>
+
+</Project>
