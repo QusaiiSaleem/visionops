@@ -1,0 +1,146 @@
+name: Build MSI Installer
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --configuration Release --no-restore
+
+    - name: Test
+      run: dotnet test --no-restore --verbosity normal
+      continue-on-error: true
+
+    - name: Publish Service
+      run: |
+        dotnet publish src/VisionOps.Service/VisionOps.Service.csproj -c Release -r win-x64 --self-contained -o publish/Service
+
+    - name: Publish UI
+      run: |
+        dotnet publish src/VisionOps.UI/VisionOps.UI.csproj -c Release -r win-x64 --self-contained -o publish/UI
+
+    - name: Create Installer Structure
+      run: |
+        mkdir installer
+        mkdir installer\Service
+        mkdir installer\UI
+        mkdir installer\models
+        xcopy /E /I publish\Service installer\Service
+        xcopy /E /I publish\UI installer\UI
+
+    - name: Create Simple Installer Script
+      run: |
+        @'
+        @echo off
+        echo Installing VisionOps...
+
+        REM Create program directory
+        mkdir "C:\Program Files\VisionOps" 2>nul
+        mkdir "C:\Program Files\VisionOps\Service" 2>nul
+        mkdir "C:\Program Files\VisionOps\UI" 2>nul
+        mkdir "C:\Program Files\VisionOps\models" 2>nul
+        mkdir "C:\ProgramData\VisionOps" 2>nul
+        mkdir "C:\ProgramData\VisionOps\data" 2>nul
+        mkdir "C:\ProgramData\VisionOps\logs" 2>nul
+
+        REM Copy files
+        echo Copying files...
+        xcopy /E /Y /I Service "C:\Program Files\VisionOps\Service"
+        xcopy /E /Y /I UI "C:\Program Files\VisionOps\UI"
+
+        REM Install service
+        echo Installing Windows Service...
+        sc create VisionOps binPath="C:\Program Files\VisionOps\Service\VisionOps.Service.exe" start=auto DisplayName="VisionOps Analytics Service"
+        sc description VisionOps "Edge video analytics platform with AI-powered monitoring"
+
+        REM Create Start Menu shortcut
+        echo Creating shortcuts...
+        powershell -Command "$WshShell = New-Object -comObject WScript.Shell; $Shortcut = $WshShell.CreateShortcut('$env:ProgramData\Microsoft\Windows\Start Menu\Programs\VisionOps.lnk'); $Shortcut.TargetPath = 'C:\Program Files\VisionOps\UI\VisionOps.UI.exe'; $Shortcut.Save()"
+
+        REM Start service
+        echo Starting service...
+        sc start VisionOps
+
+        echo.
+        echo Installation complete!
+        echo.
+        echo You can now launch VisionOps from the Start Menu.
+        echo.
+        pause
+        '@ | Out-File -FilePath installer\install.bat -Encoding ASCII
+
+    - name: Create Uninstaller Script
+      run: |
+        @'
+        @echo off
+        echo Uninstalling VisionOps...
+
+        REM Stop and delete service
+        sc stop VisionOps
+        sc delete VisionOps
+
+        REM Remove files
+        rmdir /S /Q "C:\Program Files\VisionOps"
+        rmdir /S /Q "C:\ProgramData\VisionOps"
+
+        REM Remove shortcut
+        del "%ProgramData%\Microsoft\Windows\Start Menu\Programs\VisionOps.lnk"
+
+        echo.
+        echo Uninstallation complete!
+        pause
+        '@ | Out-File -FilePath installer\uninstall.bat -Encoding ASCII
+
+    - name: Create README
+      run: |
+        @'
+        VisionOps Installer
+        ===================
+
+        To Install:
+        1. Run install.bat as Administrator
+
+        To Uninstall:
+        1. Run uninstall.bat as Administrator
+
+        Requirements:
+        - Windows 10/11 (64-bit)
+        - .NET 8 Runtime
+        - 8GB RAM minimum
+
+        After installation, launch VisionOps from the Start Menu.
+        '@ | Out-File -FilePath installer\README.txt -Encoding ASCII
+
+    - name: Create ZIP Package
+      run: |
+        Compress-Archive -Path installer\* -DestinationPath VisionOps-Installer.zip
+
+    - name: Upload Installer Artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: VisionOps-Installer
+        path: VisionOps-Installer.zip
+
+    - name: Upload to Release (if tagged)
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: VisionOps-Installer.zip
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
