@@ -28,7 +28,7 @@
 
     <!-- Performance monitoring -->
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.*" />
-    <PackageReference Include="System.Management" Version="8.0.*" />
+    <PackageReference Include="System.Management" Version="9.0.0" />
 
     <!-- Hardware monitoring for thermal management -->
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.*" />

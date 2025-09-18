@@ -24,10 +24,11 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.*" />
 
     <!-- ONVIF camera discovery -->
-    <PackageReference Include="Mictlanix.DotNet.Onvif" Version="1.9.0" />
+    <PackageReference Include="OnvifDiscovery" Version="1.2.0" />
 
-    <!-- WebP compression -->
-    <PackageReference Include="WebP.Net" Version="1.0.0" />
+    <!-- Image compression using ImageSharp -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.2" />
+    <PackageReference Include="SixLabors.ImageSharp.Web" Version="3.1.2" />
   </ItemGroup>
 
   <ItemGroup>

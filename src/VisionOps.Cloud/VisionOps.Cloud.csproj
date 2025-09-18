@@ -12,8 +12,9 @@
     <!-- Supabase client -->
     <PackageReference Include="Supabase" Version="0.13.*" />
 
-    <!-- WebP compression for image uploads -->
-    <PackageReference Include="WebP.Net" Version="1.0.0" />
+    <!-- Image compression for uploads using ImageSharp -->
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.2" />
+    <PackageReference Include="SixLabors.ImageSharp.Web" Version="3.1.2" />
 
     <!-- Retry policies -->
     <PackageReference Include="Polly" Version="8.2.0" />
