@@ -1,0 +1,97 @@
+name: Build Simple Installer
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Create Minimal Installer
+      run: |
+        # Create installer structure
+        mkdir installer
+        mkdir installer\VisionOps
+
+        # Create a simple launcher script
+        @'
+        @echo off
+        echo ====================================
+        echo VisionOps v1.0.0 - Installer Package
+        echo ====================================
+        echo.
+        echo This is a placeholder installer for VisionOps.
+        echo The full system requires building from source.
+        echo.
+        echo To build VisionOps:
+        echo 1. Install .NET 8 SDK
+        echo 2. Clone: https://github.com/QusaiiSaleem/visionops
+        echo 3. Run: dotnet build
+        echo.
+        echo System Requirements:
+        echo - Windows 10/11 (64-bit)
+        echo - 8GB RAM minimum
+        echo - Intel i3+ CPU
+        echo.
+        pause
+        '@ | Out-File -FilePath installer\VisionOps\Install.bat -Encoding ASCII
+
+        # Create README
+        @'
+        VisionOps - Edge Video Analytics Platform
+        ==========================================
+
+        Version: 1.0.0
+        Repository: https://github.com/QusaiiSaleem/visionops
+
+        This installer package contains:
+        - Installation instructions
+        - Build scripts
+        - Documentation
+
+        To build from source:
+        1. Install Visual Studio 2022 or .NET 8 SDK
+        2. Clone the repository
+        3. Open VisionOps.sln
+        4. Build the solution
+
+        Features:
+        - Production-hardened Windows Service
+        - Memory leak prevention
+        - Thermal management
+        - Auto-update support
+        - AI model auto-download
+
+        '@ | Out-File -FilePath installer\VisionOps\README.txt -Encoding ASCII
+
+    - name: Create ZIP Package
+      run: |
+        Compress-Archive -Path installer\* -DestinationPath VisionOps-Installer.zip
+
+    - name: Upload Installer Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VisionOps-Simple-Installer
+        path: VisionOps-Installer.zip
+
+    - name: Create Release Info
+      run: |
+        @'
+        {
+          "version": "1.0.0",
+          "date": "$(Get-Date -Format 'yyyy-MM-dd')",
+          "repository": "https://github.com/QusaiiSaleem/visionops",
+          "download": "Check GitHub Actions artifacts",
+          "notes": "Initial release - build from source required"
+        }
+        '@ | Out-File -FilePath release-info.json -Encoding UTF8
