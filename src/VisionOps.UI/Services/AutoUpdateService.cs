@@ -27,7 +27,7 @@ public class AutoUpdateService : BackgroundService
 
         // Configure update feed URL - can be GitHub releases or custom server
         _updateFeedUrl = Environment.GetEnvironmentVariable("VISIONOPS_UPDATE_URL")
-            ?? "https://github.com/visionops/visionops/releases";
+            ?? "https://github.com/QusaiiSaleem/visionops/releases";
 
         try
         {

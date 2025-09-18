@@ -1,0 +1,181 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Install tools
+      run: |
+        dotnet tool install -g wix
+        dotnet tool install -g velopack
+
+    - name: Restore dependencies
+      run: dotnet restore VisionOps.sln
+
+    - name: Build solution
+      run: dotnet build VisionOps.sln -c Release --no-restore
+
+    - name: Run tests
+      run: dotnet test VisionOps.sln -c Release --no-build --verbosity normal
+
+    - name: Publish Service
+      run: |
+        dotnet publish src/VisionOps.Service/VisionOps.Service.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained `
+          -p:PublishSingleFile=false `
+          -p:PublishReadyToRun=true `
+          -o artifacts/Service
+
+    - name: Publish UI
+      run: |
+        dotnet publish src/VisionOps.UI/VisionOps.UI.csproj `
+          -c Release `
+          -r win-x64 `
+          --self-contained `
+          -p:PublishSingleFile=false `
+          -p:PublishReadyToRun=true `
+          -o artifacts/UI
+
+    - name: Build MSI Installer
+      run: |
+        $version = "${{ github.event.inputs.version || github.ref_name }}"
+        $version = $version -replace '^v', ''
+
+        # Copy artifacts to installer staging
+        New-Item -ItemType Directory -Force -Path tools/VisionOps.Installer/staging
+        Copy-Item -Recurse artifacts/Service/* tools/VisionOps.Installer/staging/Service/
+        Copy-Item -Recurse artifacts/UI/* tools/VisionOps.Installer/staging/UI/
+
+        # Create models directory
+        New-Item -ItemType Directory -Force -Path tools/VisionOps.Installer/staging/models
+
+        # Build WiX installer
+        cd tools/VisionOps.Installer
+        wix build Product.wxs -o "../../VisionOps-$version.msi" -d Version=$version
+
+    - name: Build Velopack Package
+      run: |
+        $version = "${{ github.event.inputs.version || github.ref_name }}"
+        $version = $version -replace '^v', ''
+
+        # Create Velopack release
+        vpk pack `
+          --packId VisionOps `
+          --packVersion $version `
+          --packDir artifacts/UI `
+          --outputDir velopack-releases `
+          --channel stable
+
+    - name: Create Portable ZIP
+      run: |
+        $version = "${{ github.event.inputs.version || github.ref_name }}"
+        $version = $version -replace '^v', ''
+
+        # Create portable package
+        New-Item -ItemType Directory -Force -Path portable/VisionOps
+        Copy-Item -Recurse artifacts/Service/* portable/VisionOps/Service/
+        Copy-Item -Recurse artifacts/UI/* portable/VisionOps/UI/
+        Copy-Item -Recurse models portable/VisionOps/ -ErrorAction SilentlyContinue
+
+        # Add portable launcher script
+        @"
+@echo off
+echo Starting VisionOps Portable...
+cd /d "%~dp0"
+start "" "UI\VisionOps.UI.exe"
+"@ | Out-File -FilePath portable/VisionOps/Run-VisionOps.bat -Encoding ASCII
+
+        # Compress to ZIP
+        Compress-Archive -Path portable/VisionOps -DestinationPath "VisionOps-$version-portable.zip"
+
+    - name: Generate SHA256 checksums
+      run: |
+        $version = "${{ github.event.inputs.version || github.ref_name }}"
+        $version = $version -replace '^v', ''
+
+        Get-FileHash "VisionOps-$version.msi" -Algorithm SHA256 |
+          Select-Object Hash, @{Name='File';Expression={Split-Path $_.Path -Leaf}} |
+          Export-Csv -NoTypeInformation checksums.csv
+
+        Get-FileHash "VisionOps-$version-portable.zip" -Algorithm SHA256 |
+          Select-Object Hash, @{Name='File';Expression={Split-Path $_.Path -Leaf}} |
+          Export-Csv -NoTypeInformation -Append checksums.csv
+
+        Get-FileHash velopack-releases/*.nupkg -Algorithm SHA256 |
+          Select-Object Hash, @{Name='File';Expression={Split-Path $_.Path -Leaf}} |
+          Export-Csv -NoTypeInformation -Append checksums.csv
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          VisionOps-*.msi
+          VisionOps-*.zip
+          velopack-releases/*
+          checksums.csv
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+        body: |
+          ## 🚀 VisionOps ${{ github.ref_name }}
+
+          ### Installation
+          1. Download `VisionOps-${{ github.ref_name }}.msi`
+          2. Run as Administrator
+          3. Launch from Start Menu
+          4. Configure cameras and start monitoring
+
+          ### Features
+          - ✅ Production-hardened Windows Service
+          - ✅ Memory leak prevention
+          - ✅ Thermal management
+          - ✅ Auto-update support
+          - ✅ AI model auto-download
+
+          ### System Requirements
+          - Windows 10/11 (64-bit)
+          - .NET 8 Runtime
+          - 8GB RAM minimum
+          - Intel i3+ CPU
+
+          ### Files
+          - **VisionOps-${{ github.ref_name }}.msi** - Windows installer
+          - **VisionOps-${{ github.ref_name }}-portable.zip** - Portable version
+          - **velopack-releases/** - Auto-update packages
+          - **checksums.csv** - SHA256 checksums
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Upload Artifacts
+      if: "!startsWith(github.ref, 'refs/tags/')"
+      uses: actions/upload-artifact@v3
+      with:
+        name: visionops-${{ github.event.inputs.version || 'dev' }}
+        path: |
+          VisionOps-*.msi
+          VisionOps-*.zip
+          velopack-releases/
+          checksums.csv
