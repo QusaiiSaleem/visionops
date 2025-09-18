@@ -132,7 +132,7 @@ jobs:
         Compress-Archive -Path installer\* -DestinationPath VisionOps-Installer.zip
 
     - name: Upload Installer Artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: VisionOps-Installer
         path: VisionOps-Installer.zip
